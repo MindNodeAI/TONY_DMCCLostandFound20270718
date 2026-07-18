@@ -133,12 +133,27 @@
         };
 
         window.loginWithGoogle = async function() {
-            // 🛑 防呆機制：偵測是否為 LINE、IG 等內建瀏覽器
-            const ua = navigator.userAgent || navigator.vendor || window.opera;
-            const isInAppBrowser = (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1) || (ua.indexOf("Line") > -1) || (ua.indexOf("Instagram") > -1);
+            // 🛑 終極防呆機制：強制轉小寫，全面攔截任何大小寫的 LINE/IG/FB
+            const ua = navigator.userAgent.toLowerCase();
+            const isInAppBrowser = ua.includes("line") || ua.includes("instagram") || ua.includes("fban") || ua.includes("fbav");
 
             if (isInAppBrowser) {
-                alert("⚠️ 系統偵測到您使用 LINE 或 FB 內建瀏覽器，這會導致 Google 登入失敗！\n\n👉 請點擊右上角 (或右下角) 的選單 ⠇\n👉 選擇「以預設瀏覽器開啟」或「在 Safari / Chrome 開啟」\n然後再重新登入！");
+                // 取代傳統 alert，使用客製化的高質感阻擋彈窗，引導使用者跳出 LINE
+                const modalHtml = `
+                    <div id="in-app-warning" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
+                        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center">
+                            <i class="fa-solid fa-triangle-exclamation text-5xl text-red-500 mb-4"></i>
+                            <h3 class="text-xl font-black text-slate-800 mb-2">無法在 LINE 內登入</h3>
+                            <p class="text-slate-600 text-sm leading-relaxed mb-6 text-left">
+                                系統偵測到您正在使用 LINE 或 FB 內建瀏覽器，這會導致 Google 登入被阻擋而顯示白畫面！<br><br>
+                                👉 請點擊右上角 (或右下角) 的選單 <b>⠇</b><br>
+                                👉 選擇<b>「以預設瀏覽器開啟」</b>或<b>「在 Safari / Chrome 開啟」</b>再進行登入。
+                            </p>
+                            <button onclick="document.getElementById('in-app-warning').remove()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition shadow-md">我知道了</button>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
                 return; 
             }
 
@@ -174,7 +189,7 @@
                     window.showToast('🛠️ 沙盒模式：已用測試管理員登入', 'warning');
                 } else {
                     console.error("登入發生錯誤:", error);
-                    alert("登入失敗，請確認網域已授權，或使用正常的瀏覽器開啟。");
+                    window.showToast("登入失敗，請確認網域已授權，或使用正常的瀏覽器開啟。", "error");
                 }
             }
         };
