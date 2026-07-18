@@ -93,7 +93,8 @@
         // 未來要新增或刪除管理員，只要在這裡新增/刪除信箱即可。
         const ADMIN_EMAILS = [
             'mindnodeai@gmail.com',
-            'liping@mail.lhu.edu.tw'
+            'liping@mail.lhu.edu.tw',
+            'ishareping@gmail.com'
         ];
 
         // 新增：登出功能
@@ -130,19 +131,15 @@
                 
                 window.render();
             } catch (error) {
-                console.warn("登入彈窗被瀏覽器阻擋，啟動沙盒測試模式", error);
-                
-                // 🚨 萬能通行證：如果在測試預覽環境彈窗失敗，直接強制模擬管理員登入！
-                window.state.user = {
-                    uid: "admin-test-001",
-                    displayName: "系辦管理員 (測試模式)",
-                    email: "mindnodeai@gmail.com",
-                    photoURL: "https://ui-avatars.com/api/?name=Admin&background=10b981&color=fff"
-                };
-                window.state.activeRole = 'admin'; 
-                window.showToast("🛠️ 已繞過沙盒限制，強制以管理員身分登入！", "warning");
-                
-                window.render();
+                console.error("真實環境登入錯誤:", error);
+                // 正式上線版：不再使用測試假帳號，而是顯示真實的錯誤訊息
+                if (error.code === 'auth/unauthorized-domain') {
+                    window.showToast("登入失敗：請先到 Firebase 將此網址加入授權名單！", "error");
+                } else if (error.code === 'auth/popup-closed-by-user') {
+                    window.showToast("已取消登入", "warning");
+                } else {
+                    window.showToast(`登入發生異常: ${error.message}`, "error");
+                }
             }
         };
 
