@@ -460,92 +460,21 @@
         }
 
         function renderItemDetail() {
-            const item = window.state.foundItems.find(i => i.id === window.state.selectedItemId);
-            if (!item) return `<div class="p-8 text-center">找不到該物品</div>`;
-
-            let formHTML = `
-                <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center">
-                    <i class="fa-solid fa-lock text-3xl text-slate-400 mb-3"></i>
-                    <h3 class="font-bold text-slate-700 mb-2">請先登入</h3>
-                    <p class="text-sm text-slate-500 mb-4">為了保護遺失物安全，請登入校園帳號後再申請認領。</p>
-                    <button onclick="window.loginWithGoogle()" class="bg-emerald-600 text-white px-6 py-2 rounded-lg font-bold">使用 Google 登入</button>
-                </div>`;
-            
-            if (window.state.user) {
-                if (item.status === '待認領') {
-                    formHTML = `
-                        <form onsubmit="window.handleClaimAction(event, '${item.id}')" class="space-y-4">
-                            <div><label class="block text-sm font-bold text-slate-700 mb-1">您的聯絡電話 *</label><input type="text" name="contact" required class="w-full border border-slate-300 rounded-lg px-4 py-2" placeholder="09XX-XXX-XXX"></div>
-                            <div>
-                                <label class="block text-sm font-bold text-slate-700 mb-1">物品特徵證明 *</label>
-                                <p class="text-xs text-slate-500 mb-2">請具體描述只有失主知道的特徵，例如：「手機殼裡面夾著發票」、「保溫杯底部有刮痕」</p>
-                                <textarea name="answer" required rows="3" class="w-full border border-slate-300 rounded-lg px-4 py-2" placeholder="請詳細描述..."></textarea>
-                            </div>
-                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition shadow-md">送出認領申請</button>
-                        </form>`;
-                } else {
-                    formHTML = `<div class="bg-slate-100 p-6 rounded-xl text-center"><p class="font-bold text-slate-600">此物品目前狀態為：「${item.status}」<br>暫時無法送出新的申請。</p></div>`;
-                }
-            }
-
-            // 管理員操作區
-            let adminActionsHTML = '';
-            if (window.state.activeRole === 'admin') {
-                adminActionsHTML = `
-                <div class="mt-8 pt-6 border-t border-slate-200">
-                    <h3 class="text-sm font-bold text-slate-500 mb-3 uppercase tracking-wider">管理員操作區</h3>
-                    <div class="flex gap-3">
-                        <button onclick="window.navigate('edit_item', '${item.id}')" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-pen"></i> 編輯內容
-                        </button>
-                        <button onclick="document.getElementById('delete-modal').classList.remove('hidden')" class="flex-1 bg-red-100 hover:bg-red-200 text-red-700 font-bold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-trash"></i> 刪除失物
-                        </button>
-                    </div>
-                </div>
-                <!-- 刪除確認彈窗 -->
-                <div id="delete-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center">
-                    <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-                        <h3 class="text-xl font-bold text-slate-800 mb-2">確定要刪除嗎？</h3>
-                        <p class="text-slate-600 mb-6">此動作將把「${item.title}」從雲端資料庫永久移除，無法復原。</p>
-                        <div class="flex gap-3 justify-end">
-                            <button onclick="document.getElementById('delete-modal').classList.add('hidden')" class="px-4 py-2 font-bold text-slate-500 hover:bg-slate-100 rounded-lg">取消</button>
-                            <button onclick="window.deleteItem('${item.id}')" class="px-4 py-2 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700">確認刪除</button>
-                        </div>
-                    </div>
-                </div>`;
-            }
-
-            return `
-            <div class="max-w-5xl mx-auto px-4 py-8">
-                <button onclick="window.navigate('home')" class="text-slate-500 hover:text-emerald-600 mb-6 flex items-center gap-2 font-bold transition">
-                    <i class="fa-solid fa-arrow-left"></i> 返回尋找失物
-                </button>
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col md:flex-row">
-                    <div class="md:w-1/2 bg-slate-100">
-                        <img src="${item.image}" class="w-full h-full object-cover min-h-[300px]">
-                    </div>
-                    <div class="md:w-1/2 p-6 md:p-8 flex flex-col">
-                        <div class="mb-6">
-                            <div class="flex justify-between items-start mb-2">
-                                <h2 class="text-2xl font-bold text-slate-800">${item.title}</h2>
-                                <span class="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-sm font-bold">${item.status}</span>
-                            </div>
-                            <p class="text-slate-500"><i class="fa-solid fa-location-dot mr-1"></i> ${item.location} &nbsp;|&nbsp; 拾獲日: ${item.date}</p>
-                        </div>
-                        <div class="bg-slate-50 p-4 rounded-xl mb-6 text-slate-700 whitespace-pre-wrap">${item.description}</div>
-                        
-                        <div class="mt-auto">
-                            <h3 class="font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">我是失主，我要認領</h3>
-                            ${formHTML}
-                            ${adminActionsHTML}
-                        </div>
-                    </div>
-                </div>
-            </div>`;
+            // ... existing item detail logic ... (這行只是定位用，保留你原本的程式碼)
         }
 
         function renderAddItem() {
+            // 雙重防護：如果不是管理員，直接阻擋並顯示提示
+            if (window.state.activeRole !== 'admin') {
+                return `
+                <div class="max-w-3xl mx-auto px-4 py-16 text-center">
+                    <i class="fa-solid fa-shield-halved text-6xl text-slate-300 mb-4"></i>
+                    <h3 class="text-xl font-bold text-slate-600 mb-2">權限不足</h3>
+                    <p class="text-slate-500">此功能僅限系辦管理員或工讀生使用。</p>
+                    <button onclick="window.navigate('home')" class="mt-6 bg-emerald-600 text-white px-6 py-2 rounded-lg font-bold shadow-md">返回首頁</button>
+                </div>`;
+            }
+
             return `
             <div class="max-w-3xl mx-auto px-4 py-8">
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
