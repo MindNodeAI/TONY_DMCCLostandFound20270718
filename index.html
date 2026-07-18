@@ -46,7 +46,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         
         const firebaseConfig = {
             apiKey: "AIzaSyBtmjplYHKk1ktkYPuJcs-xqKFdNjjpjfs",
@@ -61,6 +61,29 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+
+        // 🚀 新增 1：自動監聽使用者登入狀態 (解決重新整理或跳轉後狀態遺失的問題)
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                window.state.user = user;
+                const userEmail = user.email.toLowerCase();
+                const adminEmails = ADMIN_EMAILS.map(email => email.toLowerCase());
+                window.state.activeRole = adminEmails.includes(userEmail) ? 'admin' : 'student';
+                window.render();
+            }
+        });
+
+        // 🚀 新增 2：攔截手機版 Redirect 登入跳轉回來後的結果
+        getRedirectResult(auth).then((result) => {
+            if (result && result.user) {
+                window.showToast('✅ 登入成功！', 'success');
+            }
+        }).catch((error) => {
+            console.error("Redirect Login Error:", error);
+            if (error.code !== 'auth/unauthorized-domain') {
+                 window.showToast('登入過程發生異常，請使用 Safari 或 Chrome', 'error');
+            }
+        });
 
         // 全域狀態管理
         window.state = {
@@ -110,45 +133,48 @@
         };
 
         window.loginWithGoogle = async function() {
+            // 🛑 防呆機制：偵測是否為 LINE、IG 等內建瀏覽器
+            const ua = navigator.userAgent || navigator.vendor || window.opera;
+            const isInAppBrowser = (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1) || (ua.indexOf("Line") > -1) || (ua.indexOf("Instagram") > -1);
+
+            if (isInAppBrowser) {
+                alert("⚠️ 系統偵測到您使用 LINE 或 FB 內建瀏覽器，這會導致 Google 登入失敗！\n\n👉 請點擊右上角 (或右下角) 的選單 ⠇\n👉 選擇「以預設瀏覽器開啟」或「在 Safari / Chrome 開啟」\n然後再重新登入！");
+                return; 
+            }
+
             try {
-                // 使用 Firebase v9+ 的模組化寫法
                 const provider = new GoogleAuthProvider();
-                // 強制每次登入都跳出選擇帳號視窗，避免卡在錯誤帳號
                 provider.setCustomParameters({ prompt: 'select_account' });
                 
-                // 呼叫彈窗登入
-                const result = await signInWithPopup(auth, provider);
-                window.state.user = result.user;
+                // 📱 手機版與電腦版採用不同的登入策略，徹底解決手機白頻問題
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                 
-                // 防呆 1：強制將信箱轉小寫比對，避免大小寫不同導致抓不到管理員權限
-                const userEmail = window.state.user.email.toLowerCase();
-                const adminEmails = ADMIN_EMAILS.map(email => email.toLowerCase());
-                window.state.activeRole = adminEmails.includes(userEmail) ? 'admin' : 'student';
-                
-                // 更新畫面
-                window.render();
-                window.showToast('登入成功！', 'success');
+                if (isMobile) {
+                    window.showToast('正在跳轉至 Google 登入...', 'info');
+                    await signInWithRedirect(auth, provider);
+                } else {
+                    await signInWithPopup(auth, provider);
+                    // 電腦版 Popup 成功後，上方的 onAuthStateChanged 會自動接手處理
+                    window.showToast('登入成功！', 'success');
+                }
             } catch (error) {
                 // 偵測是否為沙盒/未授權網域環境
                 if (error.code === 'auth/unauthorized-domain') {
                     console.warn('沙盒環境：自動切換至測試管理員帳號...');
                     
-                    // 防呆 2 (修復白畫面關鍵)：完整補齊 photoURL，確保頂部導覽列渲染大頭貼時不會崩潰
                     window.state.user = {
                         uid: 'sandbox-admin-001',
                         email: 'ishareping@gmail.com',
                         displayName: '系辦管理員',
                         photoURL: 'https://ui-avatars.com/api/?name=Admin&background=333&color=fff' 
                     };
-                    // 在沙盒環境直接賦予管理員權限，方便功能測試
                     window.state.activeRole = 'admin';
                     
-                    // 更新畫面
                     window.render();
                     window.showToast('🛠️ 沙盒模式：已用測試管理員登入', 'warning');
                 } else {
                     console.error("登入發生錯誤:", error);
-                    alert("登入失敗，請確認您的 GitHub 網址是否已加入 Firebase 授權名單中。");
+                    alert("登入失敗，請確認網域已授權，或使用正常的瀏覽器開啟。");
                 }
             }
         };
